@@ -4,11 +4,11 @@ import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# === Загрузка данных ===
+# === Загрузка данных из data.json ===
 with open('data.json', 'r', encoding='utf-8') as f:
     TRAINING_DATA = json.load(f)
 
-# === Генерация коротких ID для упражнений (обход лимита 64 байта) ===
+# === Генерация уникальных ID для упражнений (обход лимита callback_data в 64 байта) ===
 EXERCISE_IDS = {}
 ID_TO_EXERCISE = {}
 _id = 1
@@ -21,7 +21,7 @@ for place, muscles in TRAINING_DATA.items():
             ID_TO_EXERCISE[str(_id)] = (place, muscle, exercise)
             _id += 1
 
-# === Константы навигации ===
+# === Константы для навигации ===
 MAIN_MENU = "main"
 CHOOSE_PLACE = "place"
 CHOOSE_MUSCLE = "muscle"
@@ -29,6 +29,7 @@ CHOOSE_EXERCISE = "exercise"
 
 # === Вспомогательная функция: создание клавиатуры ===
 def build_menu(buttons, cols=2, back_to=None, main_menu=True):
+    """Создаёт клавиатуру с кнопками, 'Назад' и 'Главное меню'"""
     keyboard = [buttons[i:i + cols] for i in range(0, len(buttons), cols)]
     bottom_row = []
     if back_to:
@@ -76,7 +77,6 @@ async def show_exercises(update: Update, place: str, muscle: str):
         if cb_id:
             buttons.append(InlineKeyboardButton(ex, callback_data=f"{CHOOSE_EXERCISE}:{cb_id}"))
         else:
-            # На всякий случай (не должно происходить)
             buttons.append(InlineKeyboardButton(ex[:20] + "...", callback_data=MAIN_MENU))
     reply_markup = build_menu(buttons, cols=1, back_to=f"{CHOOSE_PLACE}:{place}")
     await update.callback_query.edit_message_text(f"{place} → {muscle}\nВыберите упражнение:", reply_markup=reply_markup)
@@ -84,11 +84,14 @@ async def show_exercises(update: Update, place: str, muscle: str):
 async def show_exercise_detail(update: Update, place: str, muscle: str, exercise: str):
     try:
         data = TRAINING_DATA[place][muscle][exercise]
-        caption = f"📹 <b>{exercise}</b>\n\n💡 {data['tip']}"
-        await update.callback_query.message.reply_video(
-            video=data["video_url"],
-            caption=caption,
-            parse_mode="HTML"
+        # Отправляем текст + ссылку — Telegram сам покажет превью YouTube
+        message = f"📹 <b>{exercise}</b>\n\n💡 {data['tip']}"
+        keyboard = [[InlineKeyboardButton("▶️ Смотреть видео", url=data["video_url"])]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.callback_query.message.reply_text(
+            message,
+            parse_mode="HTML",
+            reply_markup=reply_markup
         )
         # Возвращаемся к списку упражнений
         await show_exercises(update, place, muscle)
