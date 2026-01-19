@@ -1,26 +1,27 @@
+# -*- coding: utf-8 -*-
 import json
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# Загрузка данных
+# Г‡Г ГЈГ°ГіГ§ГЄГ  Г¤Г Г­Г­Г»Гµ
 with open('data.json', 'r', encoding='utf-8') as f:
     TRAINING_DATA = json.load(f)
 
-# Константы для навигации
+# ГЉГ®Г­Г±ГІГ Г­ГІГ» Г¤Г«Гї Г­Г ГўГЁГЈГ Г¶ГЁГЁ
 MAIN_MENU = "main"
 CHOOSE_PLACE = "place"
 CHOOSE_MUSCLE = "muscle"
 CHOOSE_EXERCISE = "exercise"
 
 def build_menu(buttons, cols=2, back_to=None, main_menu=True):
-    """Создаёт клавиатуру с кнопками, 'Назад' и 'Главное меню'"""
+    """Г‘Г®Г§Г¤Г ВёГІ ГЄГ«Г ГўГЁГ ГІГіГ°Гі Г± ГЄГ­Г®ГЇГЄГ Г¬ГЁ, 'ГЌГ Г§Г Г¤' ГЁ 'ГѓГ«Г ГўГ­Г®ГҐ Г¬ГҐГ­Гѕ'"""
     keyboard = [buttons[i:i + cols] for i in range(0, len(buttons), cols)]
     
     bottom_row = []
     if back_to:
-        bottom_row.append(InlineKeyboardButton("?? Назад", callback_data=back_to))
+        bottom_row.append(InlineKeyboardButton("?? ГЌГ Г§Г Г¤", callback_data=back_to))
     if main_menu:
-        bottom_row.append(InlineKeyboardButton("?? Главное меню", callback_data=MAIN_MENU))
+        bottom_row.append(InlineKeyboardButton("?? ГѓГ«Г ГўГ­Г®ГҐ Г¬ГҐГ­Гѕ", callback_data=MAIN_MENU))
     
     if bottom_row:
         keyboard.append(bottom_row)
@@ -31,10 +32,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await show_main_menu(update)
 
 async def show_main_menu(update: Update):
-    text = "?????? Выберите тип тренировки:"
+    text = "?????? Г‚Г»ГЎГҐГ°ГЁГІГҐ ГІГЁГЇ ГІГ°ГҐГ­ГЁГ°Г®ГўГЄГЁ:"
     buttons = [
-        InlineKeyboardButton("?? Дома", callback_data=f"{CHOOSE_PLACE}:Дома"),
-        InlineKeyboardButton("??? В зале", callback_data=f"{CHOOSE_PLACE}:В зале")
+        InlineKeyboardButton("?? Г„Г®Г¬Г ", callback_data=f"{CHOOSE_PLACE}:Г„Г®Г¬Г "),
+        InlineKeyboardButton("??? Г‚ Г§Г Г«ГҐ", callback_data=f"{CHOOSE_PLACE}:Г‚ Г§Г Г«ГҐ")
     ]
     reply_markup = build_menu(buttons, cols=2, main_menu=False)
     
@@ -45,21 +46,21 @@ async def show_main_menu(update: Update):
 
 async def show_muscle_groups(update: Update, place: str):
     if place not in TRAINING_DATA:
-        await update.callback_query.answer("Ошибка: неизвестный тип тренировки.")
+        await update.callback_query.answer("ГЋГёГЁГЎГЄГ : Г­ГҐГЁГ§ГўГҐГ±ГІГ­Г»Г© ГІГЁГЇ ГІГ°ГҐГ­ГЁГ°Г®ГўГЄГЁ.")
         return
     muscles = list(TRAINING_DATA[place].keys())
     buttons = [InlineKeyboardButton(m, callback_data=f"{CHOOSE_MUSCLE}:{place}:{m}") for m in muscles]
     reply_markup = build_menu(buttons, cols=2, back_to=MAIN_MENU)
-    await update.callback_query.edit_message_text(f"?? Тип: {place}\nВыберите группу мышц:", reply_markup=reply_markup)
+    await update.callback_query.edit_message_text(f"?? Г’ГЁГЇ: {place}\nГ‚Г»ГЎГҐГ°ГЁГІГҐ ГЈГ°ГіГЇГЇГі Г¬Г»ГёГ¶:", reply_markup=reply_markup)
 
 async def show_exercises(update: Update, place: str, muscle: str):
     if place not in TRAINING_DATA or muscle not in TRAINING_DATA[place]:
-        await update.callback_query.answer("Ошибка: группа мышц не найдена.")
+        await update.callback_query.answer("ГЋГёГЁГЎГЄГ : ГЈГ°ГіГЇГЇГ  Г¬Г»ГёГ¶ Г­ГҐ Г­Г Г©Г¤ГҐГ­Г .")
         return
     exercises = list(TRAINING_DATA[place][muscle].keys())
     buttons = [InlineKeyboardButton(e, callback_data=f"{CHOOSE_EXERCISE}:{place}:{muscle}:{e}") for e in exercises]
     reply_markup = build_menu(buttons, cols=1, back_to=f"{CHOOSE_PLACE}:{place}")
-    await update.callback_query.edit_message_text(f"{place} ? {muscle}\nВыберите упражнение:", reply_markup=reply_markup)
+    await update.callback_query.edit_message_text(f"{place} ? {muscle}\nГ‚Г»ГЎГҐГ°ГЁГІГҐ ГіГЇГ°Г Г¦Г­ГҐГ­ГЁГҐ:", reply_markup=reply_markup)
 
 async def show_exercise_detail(update: Update, place: str, muscle: str, exercise: str):
     try:
@@ -71,10 +72,10 @@ async def show_exercise_detail(update: Update, place: str, muscle: str, exercise
             caption=caption,
             parse_mode="HTML"
         )
-        # Возвращаемся к списку упражнений
+        # Г‚Г®Г§ГўГ°Г Г№Г ГҐГ¬Г±Гї ГЄ Г±ГЇГЁГ±ГЄГі ГіГЇГ°Г Г¦Г­ГҐГ­ГЁГ©
         await show_exercises(update, place, muscle)
     except KeyError:
-        await update.callback_query.message.reply_text("? Упражнение не найдено.")
+        await update.callback_query.message.reply_text("? Г“ГЇГ°Г Г¦Г­ГҐГ­ГЁГҐ Г­ГҐ Г­Г Г©Г¤ГҐГ­Г®.")
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -95,7 +96,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             _, place, muscle = parts
             await show_exercises(update, place, muscle)
         else:
-            await query.message.reply_text("? Ошибка данных.")
+            await query.message.reply_text("? ГЋГёГЁГЎГЄГ  Г¤Г Г­Г­Г»Гµ.")
             
     elif data.startswith(CHOOSE_EXERCISE):
         parts = data.split(":", 3)
@@ -103,20 +104,21 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             _, place, muscle, exercise = parts
             await show_exercise_detail(update, place, muscle, exercise)
         else:
-            await query.message.reply_text("? Ошибка данных.")
+            await query.message.reply_text("? ГЋГёГЁГЎГЄГ  Г¤Г Г­Г­Г»Гµ.")
     else:
-        await query.message.reply_text("Неизвестная команда.")
+        await query.message.reply_text("ГЌГҐГЁГ§ГўГҐГ±ГІГ­Г Гї ГЄГ®Г¬Г Г­Г¤Г .")
 
-# --- Запуск ---
+# --- Г‡Г ГЇГіГ±ГЄ ---
 if __name__ == "__main__":
     import os
     TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     if not TOKEN:
-        raise ValueError("Пожалуйста, установите переменную окружения TELEGRAM_BOT_TOKEN")
+        raise ValueError("ГЏГ®Г¦Г Г«ГіГ©Г±ГІГ , ГіГ±ГІГ Г­Г®ГўГЁГІГҐ ГЇГҐГ°ГҐГ¬ГҐГ­Г­ГіГѕ Г®ГЄГ°ГіГ¦ГҐГ­ГЁГї TELEGRAM_BOT_TOKEN")
     
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
     
-    print("? Бот запущен! Нажмите Ctrl+C чтобы остановить.")
+    print("? ГЃГ®ГІ Г§Г ГЇГіГ№ГҐГ­! ГЌГ Г¦Г¬ГЁГІГҐ Ctrl+C Г·ГІГ®ГЎГ» Г®Г±ГІГ Г­Г®ГўГЁГІГј.")
+
     app.run_polling()
