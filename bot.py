@@ -4,11 +4,11 @@ import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# === Загрузка данных из data.json ===
+# === Загрузка данных ===
 with open('data.json', 'r', encoding='utf-8') as f:
     TRAINING_DATA = json.load(f)
 
-# === Генерация уникальных ID для упражнений (обход лимита callback_data в 64 байта) ===
+# === Генерация ID для упражнений (обход лимита callback_data) ===
 EXERCISE_IDS = {}
 ID_TO_EXERCISE = {}
 _id = 1
@@ -21,15 +21,15 @@ for place, muscles in TRAINING_DATA.items():
             ID_TO_EXERCISE[str(_id)] = (place, muscle, exercise)
             _id += 1
 
-# === Константы для навигации ===
+# === Константы ===
 MAIN_MENU = "main"
 CHOOSE_PLACE = "place"
 CHOOSE_MUSCLE = "muscle"
 CHOOSE_EXERCISE = "exercise"
+BACK_TO_EXERCISES = "back_ex"
 
-# === Вспомогательная функция: создание клавиатуры ===
+# === Вспомогательная функция: клавиатура ===
 def build_menu(buttons, cols=2, back_to=None, main_menu=True):
-    """Создаёт клавиатуру с кнопками, 'Назад' и 'Главное меню'"""
     keyboard = [buttons[i:i + cols] for i in range(0, len(buttons), cols)]
     bottom_row = []
     if back_to:
@@ -40,7 +40,7 @@ def build_menu(buttons, cols=2, back_to=None, main_menu=True):
         keyboard.append(bottom_row)
     return InlineKeyboardMarkup(keyboard)
 
-# === Обработчики меню ===
+# === Меню ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await show_main_menu(update)
 
@@ -76,29 +76,30 @@ async def show_exercises(update: Update, place: str, muscle: str):
         cb_id = EXERCISE_IDS.get(key)
         if cb_id:
             buttons.append(InlineKeyboardButton(ex, callback_data=f"{CHOOSE_EXERCISE}:{cb_id}"))
-        else:
-            buttons.append(InlineKeyboardButton(ex[:20] + "...", callback_data=MAIN_MENU))
     reply_markup = build_menu(buttons, cols=1, back_to=f"{CHOOSE_PLACE}:{place}")
     await update.callback_query.edit_message_text(f"{place} → {muscle}\nВыберите упражнение:", reply_markup=reply_markup)
 
 async def show_exercise_detail(update: Update, place: str, muscle: str, exercise: str):
     try:
         data = TRAINING_DATA[place][muscle][exercise]
-        # Отправляем текст + ссылку — Telegram сам покажет превью YouTube
         message = f"📹 <b>{exercise}</b>\n\n💡 {data['tip']}"
-        keyboard = [[InlineKeyboardButton("▶️ Смотреть видео", url=data["video_url"])]]
+        
+        # Основная клавиатура: видео + кнопка назад
+        keyboard = [
+            [InlineKeyboardButton("▶️ Смотреть видео", url=data["video_url"])],
+            [InlineKeyboardButton("🔙 Назад к упражнениям", callback_data=f"{BACK_TO_EXERCISES}:{place}:{muscle}")]
+        ]
         reply_markup = InlineKeyboardMarkup(keyboard)
+        
         await update.callback_query.message.reply_text(
             message,
             parse_mode="HTML",
             reply_markup=reply_markup
         )
-        # Возвращаемся к списку упражнений
-        await show_exercises(update, place, muscle)
     except KeyError:
         await update.callback_query.message.reply_text("❌ Упражнение не найдено.")
 
-# === Основной обработчик кнопок ===
+# === Обработчик кнопок ===
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -127,14 +128,18 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.message.reply_text("❌ Упражнение не найдено.")
 
+    elif data.startswith(BACK_TO_EXERCISES):
+        _, place, muscle = data.split(":", 2)
+        await show_exercises(update, place, muscle)
+
     else:
         await query.message.reply_text("Неизвестная команда.")
 
-# === Запуск бота ===
+# === Запуск ===
 if __name__ == "__main__":
     TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     if not TOKEN:
-        raise ValueError("TELEGRAM_BOT_TOKEN не задан! Укажите его в переменных окружения Railway.")
+        raise ValueError("TELEGRAM_BOT_TOKEN не задан!")
     
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
